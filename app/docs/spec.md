@@ -64,7 +64,7 @@ The backend manages the available `templates`, `entities` and stores the associa
 
 The backend holds a simple database where it can track the:
 - `entity` - `template` association a specific user mail hash is associated with
-- the timeout between consecutive requests for a particular user mail hash
+- the time between consecutive requests for a particular user mail hash (one request per 72 hours)
 
 The backend communicates with the selected mail service provider `Mailtrap` in order to send the requested templates to the requested entities.
 
