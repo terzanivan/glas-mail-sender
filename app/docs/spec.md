@@ -94,7 +94,7 @@ Sends the mail via the mailtrap service.
 
 #### Operational sequence
 
-1. Accepts the name and surname from the frontend in order to construct a Sender header as {name}.{surname}@glasnarodeneu.bg. Uses the mail-address from the frontend as a Reply-To header in the email.
+1. Accepts the name and surname from the frontend in order to construct a Sender header as {name}.{surname}@glasnarodeneu.bg. Uses the `mail-address` from the frontend as a `Reply-To` header in the email. Guaranteeing the `entity` would respond to the mail the user verified.
 2. Sends a verification mail to the user
 3. Constructs a mail from the selected template
 4. Stores the constructed mail.
