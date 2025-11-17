@@ -58,6 +58,8 @@ The request shall be as follows
 
 ### Backend
 
+Written in python. Dependency management by poetry. Mailtrap and PostgreSQL as main dependencies.
+
 The backend manages the available `templates`, `entities` and stores the associations between them. It provides them to the frontend via http requests.
 
 The backend holds a simple database where it can track the:
@@ -68,13 +70,34 @@ The backend communicates with the selected mail service provider `Mailtrap` in o
 
 The backend populates the `templates` with the provided userdata.
 
+#### Key features
+
+##### Spam prevention
+
+Prevents spam by logging a hash of user's email the hash is deleted after 72 hours and that user can send a mail to another entity. The same user *can not* send *the same template to the same entities* ever again.
+
+##### User verification
+
+Verifies the `mail` address prior to sending the requested `templates` to the `entities`. 
+
+Verification is done by: storing the provided mail address as a hash signed with the app's key and sending a mail with a verification link containing the signed hash.
+
+
+##### Mail template
+
+Provides a list of mail templates associate with certain entities. The user can select the template and the entity.
+
+##### Mail sending
+
+Sends the mail via the mailtrap service.
+
+
 #### Operational sequence
 
-1. User submits a completed form
-2. Backend sends verification mail to user
-3. Backend the prepares the user-requested template with relevant data and stores it
-4. User confirms the verification within predefined time limit
-5. Backend sends the prepared template to the relevant `entities`
-6. Frontend receives confirmation that the process has started and informs the user
-7. The user may not submit any additional requests for the next 72 hours and may never submit another request for the same `template`-`entity` combination
-
+1. Accepts the name and surname from the frontend in order to construct a Sender header as {name}.{surname}@glasnarodeneu.bg. Uses the mail-address from the frontend as a Reply-To header in the email.
+2. Sends a verification mail to the user
+3. Constructs a mail from the selected template
+4. Stores the constructed mail.
+5. Awaits the user's verification
+6. Upon receiving verification sends the user-requested mail to the entities
+7. Updates the frontend to inform the user that the mail has been sent and that he now has to wait for 72 hours before he can send a different template
