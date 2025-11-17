@@ -9,8 +9,7 @@ A mail sender application that allows a single user to send a template mail to m
 
 None of this information shall be stored in raw format. Only the email is stored as a hash to prevent abuse (spam). The user shall have to confirm the authenticity of his email by confirming via a link sent to the provided `personal mail`.
 
-Once a user has sent a specific template to a specific state entity he shall not be able to repeat the operation.
-
+Once a user has sent a specific template to a specific state `entity` he shall not be able to repeat the operation.
 
 ## Features
 
@@ -27,11 +26,11 @@ And selects from 2 lists of predefined options:
 - mail template
 - target state entities
 
-Each mail template shall be sent only to associated state entities. The user first selects the template and afterwards the entities.
+Each mail template shall be sent only to associated `state entities`. The user first selects the template and afterwards the `entities`. The associations between the `entities` and the templates are predefined in the app's database and the user shall have no control over them.
 
-After the entire form has been filed a `Send` button becomes available. Upon clicking it, the user starts the verification process of his `personal mail`. 
+After the entire form has been filled a `Send` button becomes available. Upon clicking it, the user starts the verification process of his `personal mail`. 
 
-Once the user completes the `personal mail` verification process and the backend has successfully started sending email to the required entities, the frontend shall display a confirmation that the selected `template` has been sent to the requested `entities`
+Once the user completes the `personal mail` verification process and the backend has successfully started sending email to the required `entities`, the frontend shall display a confirmation that the selected `template` has been sent to the requested `entities`
 
 #### Technical
 
@@ -39,7 +38,7 @@ The frontend shall be written in Vue.js.
 
 #### Design
 
-The frontent shall have a modern, clean, minimalist interface, use white as background color, and green and red as accents.
+The frontend shall have a modern, clean, minimalist interface, use white as background color, and green and red as accents.
 
 #### API
 
@@ -62,7 +61,7 @@ The request shall be as follows
 The backend manages the available `templates`, `entities` and stores the associations between them. It provides them to the frontend via http requests.
 
 The backend holds a simple database where it can track the:
-- entities and templates a specific user mail hash is associated with
+- `entity` - `template` association a specific user mail hash is associated with
 - the timeout between consecutive requests for a particular user mail hash
 
 The backend communicates with the selected mail service provider `Mailtrap` in order to send the requested templates to the requested entities.
