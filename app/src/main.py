@@ -19,19 +19,14 @@ if SECRET_KEY is None:
 serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 
-def hash_email(email: str) -> str:
-    return hashlib.sha256(email.encode()).hexdigest()
-
-
 @app.post("/send-mail")
 def send_mail(
     request: schemas.MailRequest,
     http_request: Request,
     db: Session = Depends(database.get_db),
 ):
-    email_hash = hash_email(request.mail)
 
-    user = db.query(models.User).filter(models.User.email_hash == email_hash).first()
+    user = db.query(models.User).filter(models.User.email_hash == request.mail).first()
 
     if user:
         # Check for 72-hour limit
@@ -58,7 +53,7 @@ def send_mail(
 
     # If user does not exist, create one
     if not user:
-        user = models.User(email_hash=email_hash)
+        user = models.User(email_hash=request.mail)
         db.add(user)
         db.commit()
         db.refresh(user)
@@ -115,6 +110,8 @@ def verify_email(token: str, db: Session = Depends(database.get_db)):
 
     sender_email = f"{token_data['name']}.{token_data['surname']}@glasnarodeneu.bg"
 
+    # TODO: Move the mailer out of here
+    # WARN: The Mailer has not business here; it should have already prepared all the necessary mails while the user is validating
     mailer = Mailer()
     mailer.send(
         sender={
@@ -132,7 +129,7 @@ def verify_email(token: str, db: Session = Depends(database.get_db)):
         user_id=user.id, template_id=template.id, entity_id=entity.id
     )
     db.add(sent_mail)
-    user.last_sent_at = datetime.utcnow()
+    user.last_sent_at = datetime.now(timezone.utc)
     db.commit()
 
     return {"message": "Email verified and mail sent successfully!"}
