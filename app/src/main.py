@@ -1,5 +1,8 @@
+from email.policy import HTTP
+from re import sub
+from mailtrap import Address
 from .app.mailer.prepare import prepare_mail
-from .app.mailer.mailer import Mailer
+from .app.mailer.mailer import MailConfig, Mailer
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from .app import models, schemas, database
@@ -12,6 +15,7 @@ import os
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+mailer = Mailer()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if SECRET_KEY is None:
@@ -25,8 +29,11 @@ def send_mail(
     http_request: Request,
     db: Session = Depends(database.get_db),
 ):
-
-    user = db.query(models.User).filter(models.User.email_hash == request.mail).first()
+    user = (
+        db.query(models.User)
+        .filter(models.User.email_hash == models.User.hash_mail(request.mail))
+        .first()
+    )
 
     if user:
         # Check for 72-hour limit
@@ -70,15 +77,52 @@ def send_mail(
     token = serializer.dumps(token_data)
 
     verification_link = http_request.url_for("verify_email", token=token)
+    user = db.query(models.User).filter(models.User.id == user.id).first()
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid user")
+    template = (
+        db.query(models.Template)
+        .filter(models.Template.id == token_data["template_id"])
+        .first()
+    )
+    if template is None:
+        raise HTTPException(status_code=400, detail="Invalid template")
+    entity = (
+        db.query(models.Entity)
+        .filter(models.Entity.id == token_data["entity_id"])
+        .first()
+    )
+    if entity is None:
+        raise HTTPException(status_code=400, detail="Invalid entity")
 
-    # TODO: Send email with verification_link
+    # TODO: Put the mail_id in a session so that it's returned by the frontend later
+    mail_id, mail = mailer.prepare(
+        mailCfg=MailConfig(
+            sender=Address(
+                email=request.name + "." + request.surname + ".@glasnarodenbg.eu",
+                name=f"{token_data['name']} {token_data["surname"]}",
+            ),
+            to=[Address(email=entity.email, name=entity.name)],
+            subject=template.name,
+            content="",
+            reply_to=token_data["email"],
+        )
+    )
 
     return {
         "message": "Verification link generated. Please check your email.",
         "verification_link": verification_link,
+        "mail": {
+            "sender": mail.sender,
+            "reply_to": mail.reply_to,
+            "subject": mail.subject,
+            "content": mail.text,
+        },
+        "mail_id": mail_id,
     }
 
 
+# TODO: Token verification logic
 @app.get("/verify-email/{token}")
 def verify_email(token: str, db: Session = Depends(database.get_db)):
     try:
@@ -86,51 +130,15 @@ def verify_email(token: str, db: Session = Depends(database.get_db)):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid or expired token.")
 
-    user_id = token_data["user_id"]
-    template_id = token_data["template_id"]
-    entity_id = token_data["entity_id"]
-
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    template = (
-        db.query(models.Template).filter(models.Template.id == template_id).first()
-    )
-    entity = db.query(models.Entity).filter(models.Entity.id == entity_id).first()
-
-    if not all([user, template, entity]):
-        raise HTTPException(
-            status_code=404, detail="User, template, or entity not found."
-        )
-
-    # Prepare and send the email
-    mail_context = {
-        "name": token_data["name"],
-        "surname": token_data["surname"],
-    }
-    mail_content = prepare_mail(template.content, mail_context)
-
-    sender_email = f"{token_data['name']}.{token_data['surname']}@glasnarodeneu.bg"
-
-    # TODO: Move the mailer out of here
-    # WARN: The Mailer has not business here; it should have already prepared all the necessary mails while the user is validating
-    mailer = Mailer()
-    mailer.send(
-        sender={
-            "email": sender_email,
-            "name": f"{token_data['name']} {token_data['surname']}",
-        },
-        to=[{"email": entity.email, "name": entity.name}],
-        subject=template.name,
-        text=mail_content,
-        reply_to=token_data["mail"],
-    )
-
     # Record the sent mail and update user timestamp
-    sent_mail = models.SentMail(
-        user_id=user.id, template_id=template.id, entity_id=entity.id
-    )
-    db.add(sent_mail)
-    user.last_sent_at = datetime.now(timezone.utc)
-    db.commit()
+    # sent_mail = models.SentMail(
+    #     user_id=user.id,  # pyright: ignore[]
+    #     template_id=template.id,  # pyright: ignore[]
+    #     entity_id=entity.id,  # pyright: ignore[]
+    # )
+    # db.add(sent_mail)
+    # user.last_sent_at = datetime.now(timezone.utc)  # pyright: ignore[]
+    # db.commit()
 
     return {"message": "Email verified and mail sent successfully!"}
 

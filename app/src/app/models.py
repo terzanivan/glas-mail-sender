@@ -1,21 +1,21 @@
 import hashlib
 import json
 import os
-from typing import List, override
+from typing import override
 import uuid
 from pydantic_core import PydanticCustomError
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table
+from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, relationship, validates, mapped_column
 from sqlalchemy.sql import func
 from .database import Base
 from pydantic import ValidationError, validate_email
 
-template_entity_association = Table(
-    "template_entity_association",
-    Base.metadata,
-    Column("template_id", Integer, ForeignKey("templates.id")),
-    Column("entity_id", Integer, ForeignKey("entities.id")),
-)
+# template_entity_association = Table(
+#     "template_entity_association",
+#     Base.metadata,
+#     Column("template_id", Integer, ForeignKey("templates.id")),
+#     Column("entity_id", Integer, ForeignKey("entities.id")),
+# )
 
 VALID_DOMAINS = (
     []
@@ -40,7 +40,7 @@ class UnsupportedDomain(Exception):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
     email_hash: Mapped[str] = mapped_column(unique=True, index=True)
     last_sent_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
 
@@ -107,7 +107,7 @@ class Template(Base):
 class Entity(Base):
     __tablename__ = "entities"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(index=True)
     email: Mapped[str] = mapped_column()
     template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"))
@@ -116,17 +116,13 @@ class Entity(Base):
 class SentMail(Base):
     __tablename__ = "sent_mails"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    template_id: Mapped[int] = mapped_column(Integer, ForeignKey("templates.id"))
-    entity_id: Mapped[int] = mapped_column(Integer, ForeignKey("entities.id"))
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"))
+    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id"))
     sent_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
-
-    user = relationship("User")
-    template = relationship("Template")
-    entity = relationship("Entity")
 
 
 # TODO: Send email request verification
