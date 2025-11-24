@@ -1,7 +1,7 @@
 import hashlib
 import json
 import os
-from typing import override
+from typing import List, override
 import uuid
 from pydantic_core import PydanticCustomError
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table
@@ -67,7 +67,7 @@ class User(Base):
 
 class ParliamentGroup(Base):
     __tablename__ = "parliament_group"
-    id: Mapped[str] = mapped_column(Integer, index=True, autoincrement="auto")
+    id: Mapped[int] = mapped_column(index=True, autoincrement="auto")
     name: Mapped[str] = mapped_column()
 
 
@@ -79,11 +79,12 @@ class ElectorateArea(Base):
 
 class MP(Base):
     __tablename__ = "parliament_members"
-    id: Mapped[str] = mapped_column(primary_key=True, unique=True, autoincrement="auto")
+    id: Mapped[int] = mapped_column(primary_key=True, unique=True, autoincrement="auto")
     name: Mapped[str] = mapped_column(primary_key=True, unique=True)
     email: Mapped[str] = mapped_column()
     parliament_group_id: Mapped[int] = mapped_column(ForeignKey("parliament_group.id"))
     electorate_area: Mapped[int] = mapped_column(ForeignKey("electorate_area.id"))
+    template_id: Mapped[int] = mapped_column(ForeignKey("template.id"))
 
     @validates("name")
     def validate_mp_name(self, key: str, value: str):
@@ -96,14 +97,11 @@ class MP(Base):
 
 
 class Template(Base):
-    __tablename__ = "templates"
+    __tablename__ = "template"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
     name: Mapped[str] = mapped_column(index=True)
     content: Mapped[str] = mapped_column()
-    entities = relationship(
-        "Entity", secondary=template_entity_association, back_populates="templates"
-    )
 
 
 class Entity(Base):
@@ -112,9 +110,7 @@ class Entity(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(index=True)
     email: Mapped[str] = mapped_column()
-    templates = relationship(
-        "Template", secondary=template_entity_association, back_populates="entities"
-    )
+    template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"))
 
 
 class SentMail(Base):
@@ -138,4 +134,6 @@ class VerificationsRequests(Base):
     __tablename__ = "verification_requests"
 
     id: Mapped[str] = mapped_column(default=uuid.UUID().__str__())
-    user: Mapped[str] = relationship()
+    user: Mapped[str] = mapped_column(ForeignKey("user.id"))
+    sent: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
+    expires: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
