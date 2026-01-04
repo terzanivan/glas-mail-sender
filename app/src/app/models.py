@@ -38,7 +38,6 @@ class UnsupportedDomain(Exception):
         return f"domain {self.domain} is not supported by this platform"
 
 
-# TODO: Validate that the mail hash is not already in the database
 class User(Base):
     __tablename__ = "users"
 
@@ -47,24 +46,25 @@ class User(Base):
     last_sent_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
 
     @staticmethod
-    def hash_email(email: str) -> str:
+    def hash_email(email: str, salt: str = "glas") -> str:
+        email = salt + email
         return hashlib.sha256(email.encode()).hexdigest()
 
     @validates("email")
-    def validate_user_email(self, key: str, mail: str) -> str:
+    def validate_user_email(self, key: str, email: str, salt: str = "glas") -> str:
         """Validates the user email and returns a hash of it for storing in the database"""
-        if type(mail) is not str:
-            raise TypeError(f"Bad email value: {mail}")
+        if type(email) is not str:
+            raise TypeError(f"Bad email value: {email}")
 
         try:
-            validate_email(mail)
+            validate_email(email)
         except PydanticCustomError:
-            raise ValidationError(f"invalid {key} provided for MP {mail}")
-        domain = mail.split("@")[1]
+            raise ValidationError(f"invalid {key} provided for MP {email}")
+        domain = email.split("@")[1]
 
         if domain not in VALID_DOMAINS:
             raise UnsupportedDomain(domain)
-        return self.hash_email(mail)
+        return self.hash_email(email, salt)
 
 
 class ParliamentGroup(Base):
