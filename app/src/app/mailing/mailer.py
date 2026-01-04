@@ -1,9 +1,17 @@
+from enum import Enum
 import os
 from typing import TypedDict
 import uuid
 import mailtrap as mt
 from mailtrap import Mail, Address
 from pydantic import EmailStr
+
+
+class MailState(Enum):
+    PENDING = "PENDING"
+    SENT = "SENT"
+    ERROR = "ERROR"
+    EXPIRED = "EXPIRED"
 
 
 class MailConfig(TypedDict):
