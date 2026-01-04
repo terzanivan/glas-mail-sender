@@ -1,3 +1,5 @@
+from typing import TypedDict
+import itsdangerous
 from mailtrap import Address
 from .app.mailing.mailer import MailConfig, Mailer
 from fastapi import FastAPI, Depends, HTTPException, Request
@@ -14,6 +16,7 @@ app = FastAPI()
 mailer = Mailer()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
+SALT = os.getenv("GLAS_SALT")
 if SECRET_KEY is None:
     raise EnvironmentError("missing SEC")
 serializer = URLSafeTimedSerializer(SECRET_KEY)
@@ -36,7 +39,10 @@ def request_mail(
 ):
     user = (
         db.query(models.User)
-        .filter(models.User.email_hash == models.User.hash_mail(request.mail))
+        .filter(
+            models.User.email_hash
+            == models.User.hash_mail(email=request.mail, salt=SALT)
+        )
         .first()
     )
 
@@ -185,26 +191,6 @@ def send_mail(
 
 
 # TODO: Token verification logic
-
-
-@app.get("/verify-email/{token}")
-def verify_email(token: str, db: Session = Depends(database.get_db)):
-    try:
-        token_data = serializer.loads(token, max_age=3600)  # Token valid for 1 hour
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid or expired token.")
-
-    # Record the sent mail and update user timestamp
-    # sent_mail = models.SentMail(
-    #     user_id=user.id,  # pyright: ignore[]
-    #     template_id=template.id,  # pyright: ignore[]
-    #     entity_id=entity.id,  # pyright: ignore[]
-    # )
-    # db.add(sent_mail)
-    # user.last_sent_at = datetime.now(timezone.utc)  # pyright: ignore[]
-    # db.commit()
-
-    return {"message": "Email verified and mail sent successfully!"}
 
 
 @app.get("/templates", response_model=list[schemas.Template])
