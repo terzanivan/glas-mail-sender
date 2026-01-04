@@ -4,9 +4,11 @@ import os
 from typing import override
 import uuid
 from pydantic_core import PydanticCustomError
-from sqlalchemy import DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, relationship, validates, mapped_column
+from sqlalchemy import DateTime, Enum, ForeignKey
+from sqlalchemy.orm import Mapped, validates, mapped_column
 from sqlalchemy.sql import func
+
+from app.mailing.mailer import MailState
 from .database import Base
 from pydantic import ValidationError, validate_email
 
@@ -113,8 +115,8 @@ class Entity(Base):
     template_id: Mapped[int] = mapped_column(ForeignKey("templates.id"))
 
 
-class SentMail(Base):
-    __tablename__ = "sent_mails"
+class Mails(Base):
+    __tablename__ = "mails"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
@@ -123,6 +125,7 @@ class SentMail(Base):
     sent_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    state: Mapped[MailState] = mapped_column(Enum(MailState))
 
 
 # TODO: Send email request verification

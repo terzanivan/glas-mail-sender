@@ -1,13 +1,9 @@
-from email.policy import HTTP
-from re import sub
 from mailtrap import Address
-from .app.mailer.prepare import prepare_mail
-from .app.mailer.mailer import MailConfig, Mailer
+from .app.mailing.mailer import MailConfig, Mailer
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from .app import models, schemas, database
 from .app.database import engine
-import hashlib
 from itsdangerous import URLSafeTimedSerializer
 from datetime import datetime, timedelta, timezone
 import os
@@ -23,8 +19,8 @@ if SECRET_KEY is None:
 serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 
-@app.post("/send-mail")
-def send_mail(
+@app.post("/mails/request")
+def request_mail(
     request: schemas.MailRequest,
     http_request: Request,
     db: Session = Depends(database.get_db),
@@ -35,6 +31,7 @@ def send_mail(
         .first()
     )
 
+    # INFO: If the user exists in the database, make sure he hasn't send a mail in the last 72 hours
     if user:
         # Check for 72-hour limit
         if user.last_sent_at > datetime.now(timezone.utc) - timedelta(hours=72):
@@ -44,11 +41,11 @@ def send_mail(
 
         # Check for duplicate template-entity for the same user
         existing_sent_mail = (
-            db.query(models.SentMail)
+            db.query(models.Mails)
             .filter(
-                models.SentMail.user_id == user.id,
-                models.SentMail.template_id == request.selected_template,
-                models.SentMail.entity_id == request.selected_entity,
+                models.Mails.user_id == user.id,
+                models.Mails.template_id == request.selected_template,
+                models.Mails.entity_id == request.selected_entity,
             )
             .first()
         )
@@ -77,9 +74,6 @@ def send_mail(
     token = serializer.dumps(token_data)
 
     verification_link = http_request.url_for("verify_email", token=token)
-    user = db.query(models.User).filter(models.User.id == user.id).first()
-    if user is None:
-        raise HTTPException(status_code=400, detail="Invalid user")
     template = (
         db.query(models.Template)
         .filter(models.Template.id == token_data["template_id"])
@@ -95,7 +89,6 @@ def send_mail(
     if entity is None:
         raise HTTPException(status_code=400, detail="Invalid entity")
 
-    # TODO: Put the mail_id in a session so that it's returned by the frontend later
     mail_id, mail = mailer.prepare(
         mailCfg=MailConfig(
             sender=Address(
@@ -108,6 +101,7 @@ def send_mail(
             reply_to=token_data["email"],
         )
     )
+    http_request.session["mail_id"] = mail_id
 
     return {
         "message": "Verification link generated. Please check your email.",
@@ -122,7 +116,27 @@ def send_mail(
     }
 
 
+@app.post("/mails/verify")
+def verify_mail_request(http_request: Request):
+    mail_id = http_request.session["mail_id"]
+    token = http_request.session["token"]
+    pass
+
+
+@app.post("/send-mail")
+def send_mail(
+    request: schemas.MailRequest,
+    http_request: Request,
+    db: Session = Depends(database.get_db),
+):
+    print("We sent the mail")
+    print("Mail content:{content}")
+    pass
+
+
 # TODO: Token verification logic
+
+
 @app.get("/verify-email/{token}")
 def verify_email(token: str, db: Session = Depends(database.get_db)):
     try:
