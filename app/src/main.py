@@ -19,6 +19,15 @@ if SECRET_KEY is None:
 serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 
+class VerificationToken(TypedDict):
+    user_id: int
+    name: str
+    surname: str
+    mail: str
+    template_id: int
+    entity_id: int
+
+
 @app.post("/mails/request")
 def request_mail(
     request: schemas.MailRequest,
@@ -71,9 +80,25 @@ def request_mail(
         "template_id": request.selected_template,
         "entity_id": request.selected_entity,
     }
+    token_data = VerificationToken(
+        user_id=user.id,
+        name=request.name,
+        surname=request.surname,
+        mail=request.mail,
+        template_id=request.selected_template,
+        entity_id=request.selected_entity,
+    )
     token = serializer.dumps(token_data)
 
-    verification_link = http_request.url_for("verify_email", token=token)
+    """ NOTE: 
+    tag:email-verification
+
+    Email verification happens as follows:
+    - we generate a verification token (above) (VT)
+    - send VT to the user-provided email as a clickable link
+    """
+
+    verification_link = http_request.url_for("verify_user_email", token=token)
     template = (
         db.query(models.Template)
         .filter(models.Template.id == token_data["template_id"])
@@ -116,14 +141,39 @@ def request_mail(
     }
 
 
-@app.post("/mails/verify")
-def verify_mail_request(http_request: Request):
+""" NOTE: 
+tag:email-verification
+
+Email verification happens as follows:
+
+- receive token input from url in previuosly sent mail
+- check the validity of the token input
+- return the response to the frontend in order to continue the mail sending process
+"""
+
+
+@app.post("/mails/verify/{token}", name="verify_user_email")
+def verify_mail_request(http_request: Request, token: str):
     mail_id = http_request.session["mail_id"]
-    token = http_request.session["token"]
-    pass
+    if not mail_id:
+        raise HTTPException(status_code=400, detail="No mail_id provided")
+    if not token:
+        raise HTTPException(status_code=400, detail="No token provided")
+
+    try:
+        mailer.queue[mail_id]
+    except KeyError:
+        raise HTTPException(status_code=400, detail="Invalid mail_id provided")
+    try:
+        decoded_token: dict = serializer.loads(token, max_age=3600)
+        verified_token = VerificationToken(**decoded_token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or expired token.")
+
+    return {"message": "Verification successful.", "user_id": verified_token["user_id"]}
 
 
-@app.post("/send-mail")
+@app.post("/mails/send")
 def send_mail(
     request: schemas.MailRequest,
     http_request: Request,
