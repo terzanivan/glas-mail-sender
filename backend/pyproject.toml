@@ -1,0 +1,27 @@
+[tool.poetry]
+package-mode = false
+
+[project]
+name = "glas-mail-sender-backend"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Ivan Terziev",email = "iv.p.terziev@proton.me"}
+]
+readme = "README.md"
+requires-python = "^3.11"
+dependencies = [
+    "fastapi (>=0.128.0,<0.129.0)",
+    "uvicorn (>=0.40.0,<0.41.0)",
+    "pocketbase (>=0.15.0,<0.16.0)",
+    "aiosmtplib (>=5.0.0,<6.0.0)",
+    "pydantic-settings (>=2.12.0,<3.0.0)",
+    "python-multipart (>=0.0.21,<0.0.22)",
+    "passlib (>=1.7.4,<2.0.0)",
+    "cryptography (>=46.0.3,<47.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
