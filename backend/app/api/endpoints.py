@@ -1,6 +1,6 @@
-from typing import Any
-from fastapi import APIRouter, HTTPException, Request
-from app.api.models import OTPRequest, VerifyRequest
+from typing import List
+from fastapi import APIRouter, HTTPException
+from app.api.models import OTPRequest, VerifyRequest, Template, Entity
 from app.core.security import hash_email
 from app.core.config import settings
 from app.services.pb_service import pb
@@ -12,14 +12,14 @@ from datetime import datetime, timedelta, timezone
 router = APIRouter()
 
 
-@router.get("/templates")
+@router.get("/templates", response_model=List[Template])
 async def get_templates():
     return template_manager.get_templates()
 
 
 @router.get("/templates/{template_id}/preview")
 async def preview_template(template_id: str, name: str, surname: str):
-    template: Any = template_manager.get_template(template_id)
+    template = template_manager.get_template(template_id)
     content = template_manager.fill_template(template.content, name, surname)
     return {"content": content}
 
@@ -78,8 +78,9 @@ async def verify_and_send(payload: VerifyRequest):
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
     # Get template and entity
-    template: Any = template_manager.get_template(payload.template_id)
-    entity: Any = pb.collection("entities").get_one(payload.entity_id)
+    template = template_manager.get_template(payload.template_id)
+    entity_record = pb.collection("entities").get_one(payload.entity_id)
+    entity = Entity.model_validate(entity_record)
 
     content = template_manager.fill_template(
         template.content, payload.name, payload.surname

@@ -1,8 +1,9 @@
 import random
-from typing import Any
+from typing import Tuple
 from datetime import datetime, timedelta, timezone
 from app.services.pb_service import pb
 from app.core.config import settings
+from app.api.models import AuthAttempt, AuthState
 
 
 class Authenticator:
@@ -11,7 +12,7 @@ class Authenticator:
         return random.randint(100000, 999999)
 
     @staticmethod
-    async def create_auth_session(mail_hash: str):
+    async def create_auth_session(mail_hash: str) -> Tuple[AuthAttempt, int]:
         code = Authenticator.generate_code()
         expiry = datetime.now(timezone.utc) + timedelta(
             minutes=settings.OTP_EXPIRY_MINUTES
@@ -22,9 +23,10 @@ class Authenticator:
             "mail_hash": mail_hash,
             "code": code,
             "expiry": expiry.isoformat(),
-            "state": "sent",
+            "state": AuthState.SENT,
         }
-        return pb.collection("auth_attempts").create(data), code
+        record = pb.collection("auth_attempts").create(data)
+        return AuthAttempt.model_validate(record), code
 
     @staticmethod
     async def verify_code(mail_hash: str, code: int) -> bool:
@@ -34,7 +36,7 @@ class Authenticator:
                 1,
                 1,
                 {
-                    "filter": f'mail_hash = "{mail_hash}" && state = "sent"',
+                    "filter": f'mail_hash = "{mail_hash}" && state = "{AuthState.SENT}"',
                     "sort": "-created",
                 },
             )
@@ -42,17 +44,20 @@ class Authenticator:
             if not results.items:
                 return False
 
-            attempt: Any = results.items[0]
+            attempt_record = results.items[0]
+            attempt = AuthAttempt.model_validate(attempt_record)
 
             # Check expiry
-            expiry_str = attempt.expiry
-            expiry = datetime.fromisoformat(expiry_str.replace("Z", "+00:00"))
-            if datetime.utcnow() > expiry:
-                pb.collection("auth_attempts").update(attempt.id, {"state": "expired"})
+            if datetime.now(timezone.utc) > attempt.expiry:
+                pb.collection("auth_attempts").update(
+                    attempt.id, {"state": AuthState.EXPIRED}
+                )
                 return False
 
             if attempt.code == code:
-                pb.collection("auth_attempts").update(attempt.id, {"state": "success"})
+                pb.collection("auth_attempts").update(
+                    attempt.id, {"state": AuthState.SUCCESS}
+                )
                 return True
             else:
                 return False
