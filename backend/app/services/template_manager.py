@@ -15,8 +15,10 @@ class TemplateManager:
         return Template.model_validate(record)
 
     @staticmethod
-    def fill_template(content: str, name: str, surname: str) -> str:
-        return content.replace("{name}", name).replace("{surname}", surname)
+    def fill_template(content: str, **replacers: str) -> str:
+        for target, value in replacers.items():
+            content.replace(target, value)
+        return content
 
     @staticmethod
     def get_associated_entities(template_id: str) -> List[Entity]:

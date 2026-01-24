@@ -4,6 +4,7 @@ from app.api.endpoints import router
 
 app = FastAPI(title="Glas Mail Sender API")
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Adjust in production

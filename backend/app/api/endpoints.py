@@ -1,5 +1,6 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
+from mailtrap import Address
 from app.api.models import OTPRequest, VerifyRequest, Template, Entity
 from app.core.security import hash_email
 from app.core.config import settings
@@ -61,9 +62,10 @@ async def request_otp(payload: OTPRequest):
 
     # Send OTP mail
     await mail_sender.send_mail(
-        to_email=payload.mail,
+        to_email=[payload.mail],
         subject="Вашият код за потвърждение",
         content=f"Вашият код за потвърждение е: {code}",
+        sender=f"noreply@{settings.DOMAIN_NAME}",
     )
 
     return {"message": "OTP sent"}
@@ -77,19 +79,30 @@ async def verify_and_send(payload: VerifyRequest):
     if not is_valid:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP")
 
-    # Get template and entity
+    # WARN: This assumes that there is only one entity a template can be sent to.
+    # There are multiple and the application should do only 1 send action
     template = template_manager.get_template(payload.template_id)
     entity_record = pb.collection("entities").get_one(payload.entity_id)
     entity = Entity.model_validate(entity_record)
 
-    content = template_manager.fill_template(
-        template.content, payload.name, payload.surname
-    )
-    reply_to = f"{payload.name}.{payload.surname}@{settings.DOMAIN_NAME}"
+    # TODO: The data for the replacement also comes from the entity
+
+    replacers = {
+        "{sender_name}": payload.name,
+        "{sender_surname}": payload.surname,
+        "{sender_domain}": payload.mail.split("@")[1],
+        "{entity_name}": entity.name,
+    }
+
+    content = template_manager.fill_template(template.content, **replacers)
+
+    reply_to = payload.mail
+    sender = f"{replacers['{sender_name}']}.{replacers['{sender_surname}']}@{settings.DOMAIN_NAME}"
 
     # Send actual mail to entity
     await mail_sender.send_mail(
-        to_email=entity.email,
+        to_email=[entity.email],
+        sender=sender,
         subject="Гражданско писмо",  # Could be more dynamic
         content=content,
         reply_to=reply_to,

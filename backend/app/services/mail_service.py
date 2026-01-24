@@ -1,28 +1,41 @@
+from ast import Add
 from typing import Optional
 import aiosmtplib
-from email.message import EmailMessage
+from mailtrap import (
+    Address,
+    ClientConfigurationError,
+    MailtrapClient,
+    Mail,
+    MailtrapError,
+)
 from app.core.config import settings
+
+token = settings.MAILTRAP_TOKEN
+if not token:
+    raise ClientConfigurationError("no mailtrap token provided")
+client = MailtrapClient(token=token)
+
 
 class MailSender:
     @staticmethod
-    async def send_mail(to_email: str, subject: str, content: str, reply_to: Optional[str] = None):
-        message = EmailMessage()
-        domain: str = settings.DOMAIN_NAME or "example.com"
-        from_addr = f"Glas Mailer <no-reply@{domain}>"
-        message["From"] = from_addr
-        message["To"] = to_email
-        message["Subject"] = subject
-        if reply_to:
-            message["Reply-To"] = reply_to
-        message.set_content(content)
-
-        await aiosmtplib.send(
-            message,
-            hostname=settings.MAILTRAP_HOST,
-            port=settings.MAILTRAP_PORT,
-            username=settings.MAILTRAP_USER,
-            password=settings.MAILTRAP_PASSWORD,
-            use_tls=False, # Mailtrap usually uses STARTTLS or none
+    async def send_mail(
+        to_email: list[str],
+        sender: str,
+        subject: str,
+        content: str,
+        reply_to: Optional[str] = None,
+    ):
+        receivers = [Address(email=receiver) for receiver in to_email]
+        message = Mail(
+            to=receivers,
+            sender=Address(email=sender),
+            reply_to=Address(email=reply_to) if reply_to is not None else None,
+            subject=subject,
+            html=content,
         )
+        result = client.send(message)
+        if not result["success"]:
+            raise MailtrapError(result)
+
 
 mail_sender = MailSender()
