@@ -5,7 +5,6 @@ import type { MailForm } from '../../types/mail'
 defineProps<{
   form: MailForm
   loading: boolean
-  isEmailValid: boolean
   onBack: () => void
   onVerify: () => void
 }>()
@@ -24,7 +23,7 @@ defineProps<{
     <input v-model="form.otp" type="text" maxlength="6" placeholder="000000" class="w-full max-w-[280px] mx-auto text-center text-5xl tracking-[0.2em] p-6 bg-gray-50 border-none rounded-3xl focus:ring-2 focus:ring-glas-green outline-none font-mono font-bold" />
 
     <div class="flex flex-col gap-4">
-      <button @click="onVerify" :disabled="form.otp.length < 6 || loading || !isEmailValid" class="w-full bg-glas-green text-white py-5 rounded-2xl font-bold text-xl hover:opacity-90 transition-all transform hover:scale-[1.02] shadow-xl shadow-green-100 active:scale-[0.98] disabled:opacity-50 disabled:scale-100 disabled:shadow-none">
+      <button @click="onVerify" :disabled="form.otp.length < 6 || loading" class="w-full bg-glas-green text-white py-5 rounded-2xl font-bold text-xl hover:opacity-90 transition-all transform hover:scale-[1.02] shadow-xl shadow-green-100 active:scale-[0.98] disabled:opacity-50 disabled:scale-100 disabled:shadow-none">
         <div v-if="loading" class="flex items-center justify-center gap-3">
           <span class="animate-spin text-2xl">⏳</span> Обработка...
         </div>

@@ -6,7 +6,9 @@ from app.api.models import Template, Entity
 class TemplateManager:
     @staticmethod
     def get_templates() -> List[Template]:
-        records = pb.collection("template").get_full_list()
+        records = pb.collection("template").get_full_list(
+            query_params={"expand": "target_entities"}
+        )
         return [Template.model_validate(r) for r in records]
 
     @staticmethod

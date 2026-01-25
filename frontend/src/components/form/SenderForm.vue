@@ -47,7 +47,7 @@ defineProps<{
         class="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-glas-green outline-none appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <option value="" disabled>Изберете шаблон на писмо</option>
-        <option v-for="t in templates" :key="t.id" :value="t.id">Шаблон: {{ t.id }}</option>
+        <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
     </div>
 

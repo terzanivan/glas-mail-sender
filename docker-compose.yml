@@ -26,5 +26,11 @@ services:
           path: ./backend
           target: /app
           initial_sync: true
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 volumes:
   pbvol:

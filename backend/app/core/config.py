@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     MAILTRAP_USER: str = ""
     MAILTRAP_PASSWORD: str = ""
 
+    # Local Mail Sandbox (Mailpit)
+    USE_LOCAL_MAIL: bool = True
+    LOCAL_SMTP_HOST: str = "mailpit"
+    LOCAL_SMTP_PORT: int = 1025
+
     MAIL_HASH_SALT: str = "default_salt"
     OTP_EXPIRY_MINUTES: int = 10
     RATE_LIMIT_HOURS: int = 168

@@ -1,7 +1,8 @@
 from enum import Enum
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, EmailStr, ConfigDict, Field
+
 
 class EntityType(str, Enum):
     COMMISSION = "commission"
@@ -9,34 +10,47 @@ class EntityType(str, Enum):
     COMPANY = "company"
     GOVERNMENT_ENTITY = "government_entity"
 
+
 class AuthState(str, Enum):
     SENT = "sent"
     SUCCESS = "success"
     FAILED = "failed"
     EXPIRED = "expired"
 
+
 class PBBaseModel(BaseModel):
     """Base model for PocketBase records"""
+
     id: Optional[str] = None
     created: Optional[datetime] = None
     updated: Optional[datetime] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class Entity(PBBaseModel):
     name: str
     email: EmailStr
     ent_type: EntityType
 
+
+class TemplateExpand(BaseModel):
+    target_entities: List[Entity] = Field(default_factory=list)
+
+
 class Template(PBBaseModel):
     content: str
+    name: str
     target_entities: List[str] = Field(default_factory=list)
+    expand: Optional[TemplateExpand] = None
+
 
 class AuthAttempt(PBBaseModel):
-    mail_hash: str
+    user_mail_hash: str
     code: int
-    expiry: datetime
+    expires: datetime
     state: AuthState
+
 
 class SentLog(PBBaseModel):
     mail_hash: str
@@ -44,7 +58,9 @@ class SentLog(PBBaseModel):
     entity_id: str
     timestamp: datetime
 
+
 # --- Request Models ---
+
 
 class OTPRequest(BaseModel):
     name: str
@@ -52,6 +68,7 @@ class OTPRequest(BaseModel):
     mail: EmailStr
     template_id: str
     entity_id: str
+
 
 class VerifyRequest(BaseModel):
     mail: EmailStr

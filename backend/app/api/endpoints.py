@@ -20,14 +20,23 @@ async def get_templates():
 @router.get("/templates/{template_id}/preview")
 async def preview_template(template_id: str, name: str, surname: str):
     template = template_manager.get_template(template_id)
+    if not template.target_entities:
+        return {"content": template.content}
+
     ent_id = template.target_entities[0]
-    entity_record = pb.collection("entity").get_one(ent_id)
-    entity = Entity.model_validate(entity_record)
+    try:
+        entity_record = pb.collection("entity").get_one(ent_id)
+        entity = Entity.model_validate(entity_record)
+        entity_name = entity.name
+    except Exception:
+        entity_name = "[Име на институция]"
 
     replacers = {
+        "{sender_name}": name,
+        "{sender_surname}": surname,
         "{user_name}": name,
         "{user_surname}": surname,
-        "{entity_name}": entity.name,
+        "{entity_name}": entity_name,
     }
     content = template_manager.fill_template(template.content, **replacers)
     return {"content": content}
@@ -39,11 +48,11 @@ async def request_otp(payload: OTPRequest):
 
     # Check rate limit (168 hours)
     limit_time = datetime.now(timezone.utc) - timedelta(hours=settings.RATE_LIMIT_HOURS)
-    existing_logs = pb.collection("sent_logs").get_list(
+    existing_logs = pb.collection("sent_mail_logs").get_list(
         1,
         1,
-        {
-            "filter": f'mail_hash = "{mail_hash}" && created > "{limit_time.isoformat()}"'
+        query_params={
+            "filter": f'user_mail_hash = "{mail_hash}" && created > "{limit_time.isoformat()}"'
         },
     )
 
@@ -53,11 +62,11 @@ async def request_otp(payload: OTPRequest):
         )
 
     # Check deduplication
-    duplicate_template = pb.collection("sent_logs").get_list(
+    duplicate_template = pb.collection("sent_mail_logs").get_list(
         1,
         1,
-        {
-            "filter": f'mail_hash = "{mail_hash}" && template_id = "{payload.template_id}"'
+        query_params={
+            "filter": f'user_mail_hash = "{mail_hash}" && template_id = "{payload.template_id}"'
         },
     )
     if duplicate_template.items:
@@ -90,7 +99,10 @@ async def verify_and_send(payload: VerifyRequest):
     # WARN: This assumes that there is only one entity a template can be sent to.
     # There are multiple and the application should do only 1 send action
     template = template_manager.get_template(payload.template_id)
-    entity_record = pb.collection("entities").get_one(payload.entity_id)
+    # TODO: Implement the collection of entities according to template_id and sending the mail
+    entity_record = pb.collection("entity").get_first_list_item(
+        filter=f'target_entities = "{template.target_entities[0]}"'
+    )
     entity = Entity.model_validate(entity_record)
 
     # TODO: The data for the replacement also comes from the entity
@@ -98,6 +110,8 @@ async def verify_and_send(payload: VerifyRequest):
     replacers = {
         "{sender_name}": payload.name,
         "{sender_surname}": payload.surname,
+        "{user_name}": payload.name,
+        "{user_surname}": payload.surname,
         "{sender_domain}": payload.mail.split("@")[1],
         "{entity_name}": entity.name,
     }
@@ -117,12 +131,11 @@ async def verify_and_send(payload: VerifyRequest):
     )
 
     # Log the send
-    pb.collection("sent_logs").create(
+    pb.collection("sent_mail_logs").create(
         {
-            "mail_hash": mail_hash,
+            "user_mail_hash": mail_hash,
             "template_id": payload.template_id,
-            "entity_id": payload.entity_id,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "created": datetime.now(timezone.utc).isoformat(),
         }
     )
 
