@@ -4,7 +4,7 @@ services:
     ports:
       - "8090:8090"
     volumes:
-      - ./pb_data:/pb_data
+      - pbvol:/pocketbase
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8090/api/health"]
       interval: 5s
@@ -26,4 +26,5 @@ services:
           path: ./backend
           target: /app
           initial_sync: true
-
+volumes:
+  pbvol:
