@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     POCKETBASE_URL: str = "http://localhost:8090"
+    POCKETBASE_ADMIN: str = ""
+    POCKETBASE_ADMIN_PW: str = ""
 
     MAILTRAP_API_TOKEN: str = ""
     MAILTRAP_HOST: str = "smtp.mailtrap.io"

@@ -1,6 +1,4 @@
-from ast import Add
 from typing import Optional
-import aiosmtplib
 from mailtrap import (
     Address,
     ClientConfigurationError,
@@ -10,7 +8,7 @@ from mailtrap import (
 )
 from app.core.config import settings
 
-token = settings.MAILTRAP_TOKEN
+token = settings.MAILTRAP_API_TOKEN
 if not token:
     raise ClientConfigurationError("no mailtrap token provided")
 client = MailtrapClient(token=token)

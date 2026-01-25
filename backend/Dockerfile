@@ -1,15 +1,13 @@
 FROM python:3.11-slim
+RUN pip install poetry
 RUN useradd -ms /bin/sh -u 1001 app
-USER app
 
 WORKDIR /app
-
-RUN pip install poetry
-
 COPY pyproject.toml poetry.lock* ./
-
 RUN poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root
+
+USER app
 
 COPY --chown=app:app . .
 

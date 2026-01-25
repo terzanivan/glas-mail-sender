@@ -1,6 +1,5 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
-from mailtrap import Address
 from app.api.models import OTPRequest, VerifyRequest, Template, Entity
 from app.core.security import hash_email
 from app.core.config import settings
@@ -21,7 +20,16 @@ async def get_templates():
 @router.get("/templates/{template_id}/preview")
 async def preview_template(template_id: str, name: str, surname: str):
     template = template_manager.get_template(template_id)
-    content = template_manager.fill_template(template.content, name, surname)
+    ent_id = template.target_entities[0]
+    entity_record = pb.collection("entity").get_one(ent_id)
+    entity = Entity.model_validate(entity_record)
+
+    replacers = {
+        "{user_name}": name,
+        "{user_surname}": surname,
+        "{entity_name}": entity.name,
+    }
+    content = template_manager.fill_template(template.content, **replacers)
     return {"content": content}
 
 
