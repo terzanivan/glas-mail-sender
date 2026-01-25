@@ -1,12 +1,15 @@
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import confetti from 'canvas-confetti'
 import { mailService } from '../api/mailService'
 import type { Template, Entity, MailForm } from '../types/mail'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function useMailForm() {
   const step = ref(1)
   const loading = ref(false)
   const error = ref('')
+  const mailValidationError = ref('')
   const success = ref(false)
   const previewContent = ref('')
   
@@ -20,6 +23,34 @@ export function useMailForm() {
     selected_template: '',
     selected_entity: '',
     otp: ''
+  })
+
+  // Computed states for validation
+  const isEmailValid = computed(() => EMAIL_REGEX.test(form.value.mail))
+  const isProfileComplete = computed(() => 
+    form.value.name.trim().length >= 2 && 
+    form.value.surname.trim().length >= 2 && 
+    isEmailValid.value
+  )
+
+  // Debounced email validation
+  let debounceTimer: ReturnType<typeof setTimeout>
+  watch(() => form.value.mail, (newVal) => {
+    clearTimeout(debounceTimer)
+    if (!newVal) {
+      mailValidationError.value = ''
+      return
+    }
+    debounceTimer = setTimeout(() => {
+      mailValidationError.value = isEmailValid.value ? '' : 'Моля, въведете валиден имейл адрес.'
+    }, 1000)
+  })
+
+  // Watch for profile changes to refresh preview if template is already selected
+  watch([() => form.value.name, () => form.value.surname], () => {
+    if (form.value.selected_template && isProfileComplete.value) {
+      onTemplateChange()
+    }
   })
 
   const fetchTemplates = async () => {
@@ -118,6 +149,9 @@ export function useMailForm() {
     confirmDetails,
     requestOTP,
     verifyAndSend,
-    reset
+    reset,
+    isEmailValid,
+    isProfileComplete,
+    mailValidationError
   }
 }

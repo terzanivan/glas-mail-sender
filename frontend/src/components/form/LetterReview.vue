@@ -23,8 +23,16 @@ defineProps<{
 
     <div class="space-y-2">
       <label class="text-sm font-bold text-gray-700">Преглед на съдържанието</label>
-      <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 text-sm md:text-base whitespace-pre-wrap leading-relaxed min-h-[250px] max-h-[400px] overflow-y-auto text-gray-600">
-        {{ previewContent }}
+      <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 text-sm md:text-base whitespace-pre-wrap leading-relaxed min-h-[250px] max-h-[400px] overflow-y-auto text-gray-600 relative">
+        <div v-if="loading && !previewContent" class="absolute inset-0 flex items-center justify-center bg-gray-50/50 rounded-2xl">
+          <span class="animate-spin text-2xl">⏳</span>
+        </div>
+        <template v-if="previewContent">
+          {{ previewContent }}
+        </template>
+        <div v-else-if="!loading" class="text-gray-400 italic text-center py-12">
+          Грешка при генериране на прегледа.
+        </div>
       </div>
     </div>
 

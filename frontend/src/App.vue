@@ -21,7 +21,9 @@ const {
   confirmDetails,
   requestOTP,
   verifyAndSend,
-  reset
+  reset,
+  isProfileComplete,
+  mailValidationError
 } = useMailForm()
 </script>
 
@@ -38,6 +40,8 @@ const {
           :form="form"
           :templates="templates"
           :loading="loading"
+          :is-profile-complete="isProfileComplete"
+          :mail-validation-error="mailValidationError"
           :on-template-change="onTemplateChange"
           :on-confirm="confirmDetails"
         />
@@ -56,6 +60,7 @@ const {
           v-if="step === 3"
           :form="form"
           :loading="loading"
+          :is-email-valid="isEmailValid"
           :on-back="() => step = 2"
           :on-verify="verifyAndSend"
         />
