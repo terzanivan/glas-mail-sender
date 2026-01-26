@@ -75,7 +75,7 @@ export function useMailForm() {
 			)
 			previewContent.value = res.content
 
-			const t = templates.value.find(x => x.name === form.value.selected_template)
+			const t = templates.value.find(x => x.id === form.value.selected_template)
 			entities.value = t?.expand?.target_entities || []
 		} catch (err) {
 			error.value = 'Грешка при зареждане на детайли.'
