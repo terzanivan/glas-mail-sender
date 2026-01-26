@@ -18,20 +18,17 @@ const showRecipients = ref(false)
 <template>
   <div class="space-y-6 animate-in slide-in-from-right-4 duration-300">
 		<div class="space-y-2">
-      <div class="flex items-center justify-between bg-gray-50 shadow-sm rounded-l pl-2 pr-2">
-        <label class="text-sm font-bold text-gray-700">Получатели ({{ receivers.length }})</label>
-        <button 
-          @click="showRecipients = !showRecipients" 
-          class="p-1 text-glas-green hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
-          :aria-label="showRecipients ? 'Скрий получателите' : 'Виж всички получатели'"
-        >
-          <ChevronDown 
-            class="w-5 h-5 transition-transform duration-200" 
-            :class="{ 'rotate-180': showRecipients }"
-          />
-        </button>
-      </div>
-
+			<button 
+				@click="showRecipients = !showRecipients" 
+				class="p-1 w-full justify-between flex flex-row flex-wrap bg-green-50 border-2 border-green-100 text-glas-green hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
+				:aria-label="showRecipients ? 'Скрий получателите' : 'Виж всички получатели'"
+			>
+			<label class="text-sm font-bold text-gray-700">Получатели ({{ receivers.length }})</label>
+				<ChevronDown 
+					class="w-5 h-5 transition-transform duration-200" 
+					:class="{ 'rotate-180': showRecipients }"
+				/>
+			</button>
       <div 
         v-if="showRecipients" 
         class="bg-gray-50 p-4 rounded-2xl border border-gray-100 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200"
@@ -39,7 +36,7 @@ const showRecipients = ref(false)
       >
         <ul class="space-y-1">
           <li v-for="r in receivers" :key="r.id" class="text-xs md:text-sm text-gray-600 flex items-center gap-2">
-            <label class="truncate border-2 border-gray-300 pl-2 pr-2 rounded-full">{{ r.email }}</label>
+            <label class="truncate border-2 bg-gray-100 border-gray-200 pl-2 pr-2 rounded-full">{{ r.email }}</label>
           </li>
         </ul>
       </div>
