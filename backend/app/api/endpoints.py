@@ -100,12 +100,10 @@ async def verify_and_send(payload: VerifyRequest):
     # There are multiple and the application should do only 1 send action
     template = template_manager.get_template(payload.template_id)
     # TODO: Implement the collection of entities according to template_id and sending the mail
-    entity_record = pb.collection("entity").get_first_list_item(
-        filter=f'target_entities = "{template.target_entities[0]}"'
-    )
-    entity = Entity.model_validate(entity_record)
-
-    # TODO: The data for the replacement also comes from the entity
+    related = template.expand
+    if related is None:
+        raise Exception("unexpected 0-relatinship template")
+    entity = Entity.model_validate(related.target_entities[0])
 
     replacers = {
         "{sender_name}": payload.name,
@@ -116,6 +114,8 @@ async def verify_and_send(payload: VerifyRequest):
         "{entity_name}": entity.name,
     }
 
+    receivers = [e.email for e in related.target_entities]
+
     content = template_manager.fill_template(template.content, **replacers)
 
     reply_to = payload.mail
@@ -123,7 +123,7 @@ async def verify_and_send(payload: VerifyRequest):
 
     # Send actual mail to entity
     await mail_sender.send_mail(
-        to_email=[entity.email],
+        to_email=receivers,
         sender=sender,
         subject="Гражданско писмо",  # Could be more dynamic
         content=content,

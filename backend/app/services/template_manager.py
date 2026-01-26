@@ -13,7 +13,9 @@ class TemplateManager:
 
     @staticmethod
     def get_template(template_id: str) -> Template:
-        record = pb.collection("template").get_one(template_id)
+        record = pb.collection("template").get_one(
+            template_id, {"expand": "target_entities"}
+        )
         return Template.model_validate(record)
 
     @staticmethod
