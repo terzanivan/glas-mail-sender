@@ -1,7 +1,16 @@
+// TODO: Configure the entity enum
+enum EntityType {
+	MP,
+	Commission,
+	GovernmentEntity,
+	Company
+}
+
 export interface Entity {
 	id: string
 	name: string
 	email: string
+	type: EntityType
 }
 
 export interface Template {

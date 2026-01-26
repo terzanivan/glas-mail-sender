@@ -23,6 +23,7 @@ const showRecipients = ref(false)
 				class="p-1 w-full justify-between flex flex-row flex-wrap bg-green-50 border-2 border-green-100 text-glas-green hover:bg-gray-100 rounded-lg transition-colors focus:outline-none"
 				:aria-label="showRecipients ? 'Скрий получателите' : 'Виж всички получатели'"
 			>
+			<!--- TODO: Check layout when dozens of entities are present; add symbolic icons depending on entity type --->
 			<label class="text-sm font-bold text-gray-700">Получатели ({{ receivers.length }})</label>
 				<ChevronDown 
 					class="w-5 h-5 transition-transform duration-200" 
