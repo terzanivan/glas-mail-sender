@@ -52,13 +52,15 @@ class Authenticator:
             if datetime.now(timezone.utc) > attempt.expires:
                 print(f"code is expred :{attempt.code} expected: {code}")
                 pb.collection("auth_attempt").update(
-                    attempt.id, {"state": AuthState.EXPIRED}
+                    attempt.id,  # pyright: ignore[reportArgumentType]
+                    {"state": AuthState.EXPIRED},
                 )
                 return False
 
             if attempt.code == code:
                 pb.collection("auth_attempt").update(
-                    attempt.id, {"state": AuthState.SUCCESS}
+                    attempt.id,  # pyright: ignore[reportArgumentType]
+                    {"state": AuthState.SUCCESS},
                 )
                 return True
             else:

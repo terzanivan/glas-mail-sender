@@ -17,7 +17,6 @@ async def get_templates():
     return template_manager.get_templates()
 
 
-# TODO: Provide full entity information when sending the preview
 @router.get("/templates/{template_id}/preview")
 async def preview_template(template_id: str, name: str, surname: str):
     template = template_manager.get_template(template_id)
@@ -89,6 +88,7 @@ async def request_otp(payload: OTPRequest):
     return {"message": "OTP sent"}
 
 
+# TODO: Provide full entity information when sending the preview
 @router.post("/verify-and-send")
 async def verify_and_send(payload: VerifyRequest):
     mail_hash = hash_email(payload.mail)
