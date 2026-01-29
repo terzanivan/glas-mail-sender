@@ -1,10 +1,35 @@
+import asyncio
 import logging
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Any, Mapping, Optional, TypedDict
+
+from pydantic import BaseModel, Field, HttpUrl, EmailStr
+
 from app.api.models import Entity, EntityType
+
 from app.services.pb_service import pb
 
 logger = logging.getLogger(__name__)
+
+
+class _p_Mp_Def(BaseModel):
+    A_ns_MP_id: int
+    A_ns_MPL_Name1: str
+    A_ns_MPL_Name2: str
+    A_ns_MPL_Name3: str
+    A_ns_MP_Email: Optional[EmailStr] = Field(default="invalid@invalid.org")
+
+
+class _p_Com_Def(BaseModel):
+    A_ns_C_id: int
+    A_ns_CL_value: str
+    A_ns_CDemail: Optional[EmailStr] = Field(default="invalid@invalid.org")
+
+
+class _entMapping(TypedDict):
+    name: str
+    email: EmailStr
+    url: str
 
 
 class EntityMaintainer:
@@ -14,8 +39,15 @@ class EntityMaintainer:
     """
 
     def __init__(self) -> None:
+        # INFO: So, the httpx library sets a User-Agent that triggers the parliament.bg defences. So we replace it.
+        headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+        }
         self.base_url = "https://parliament.bg/api/v1"
-        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0)
+        self.client = httpx.AsyncClient(
+            base_url=self.base_url, timeout=30.0, verify=False, headers=headers
+        )
 
     async def _fetch(self, endpoint: str) -> Optional[Any]:
         """Generic async fetcher with error handling"""
@@ -30,7 +62,7 @@ class EntityMaintainer:
         return None
 
     def _transform_to_entity(
-        self, data: Dict[str, Any], ent_type: EntityType
+        self, data: _entMapping, ent_type: EntityType
     ) -> Optional[Entity]:
         """
         Translates raw dictionary data into the application's Entity model.
@@ -42,42 +74,91 @@ class EntityMaintainer:
                 name=data.get("name") or data.get("full_name") or "Unknown",
                 email=data.get("email") or "no-reply@parliament.bg",
                 ent_type=ent_type,
+                ent_source=data.get("url") or "invalid",  # # pyright: ignore[]
             )
         except Exception as e:
             logger.warning(f"Failed to transform data to Entity: {e}")
             return None
 
     async def get_mps(self) -> List[Entity]:
+        async def _process_mp(item) -> Entity | None:
+            mp = _p_Mp_Def(**item)
+            ent_url = HttpUrl(url=self.base_url + f"/mp-profile/bg/{mp.A_ns_MP_id}")
+            resp = await self._fetch(ent_url.encoded_string())
+            if not resp:
+                logger.warning(
+                    f"could not get detail for {EntityType.MP} {mp.A_ns_MP_id}"
+                )
+                return
+            mp.A_ns_MP_Email = resp["A_ns_MP_Email"]
+            mp_mapping = _entMapping(
+                name=f"{mp.A_ns_MPL_Name1} {mp.A_ns_MPL_Name2} {mp.A_ns_MPL_Name3}",
+                email=str(mp.A_ns_MP_Email),
+                url=ent_url.__str__(),
+            )
+            entity = self._transform_to_entity(mp_mapping, EntityType.MP)
+            return entity
+
         """
         Fetches all MPs from the external API and translates them into Entity objects.
         """
-        raw_list = await self._fetch("/coll-list-ns/bg")
-        if not raw_list:
+        data = await self._fetch("coll-list-ns/bg")
+        if not data:
             return []
+        raw_entities: List[Mapping] = data["colListMP"]
+        entities: List[Entity] = []
 
-        entities = []
-        # In a real scenario, we might iterate over IDs and fetch details
-        for item in raw_list:
-            entity = self._transform_to_entity(item, EntityType.MP)
-            if entity:
-                entities.append(entity)
-
+        batch_size = 5
+        for i in range(0, len(raw_entities), 5):
+            batch = raw_entities[i : i + batch_size]
+            tasks = [_process_mp(item) for item in batch]
+            results = await asyncio.gather(*tasks)
+            entities.extend([ent for ent in results if ent is not None])
+            if i + batch_size < len(raw_entities):
+                logger.info(f"processed {i}/{len(raw_entities)}")
+                await asyncio.sleep(1.0)
         return entities
 
     async def get_committees(self) -> List[Entity]:
         """
         Fetches all committees from the external API and translates them into Entity objects.
         """
-        raw_list = await self._fetch("/coll-list/bg/3")
-        if not raw_list:
+
+        async def _process_committee(item) -> Entity | None:
+            comm = _p_Com_Def(**item)
+            ent_url = HttpUrl(
+                url=self.base_url + f"/coll-list-mp/bg/{comm.A_ns_C_id}/3"
+            )
+            resp = await self._fetch(ent_url.encoded_string())
+            if not resp:
+                print(
+                    f"could not get detail for {str(EntityType.COMMITTEE)} {comm.A_ns_C_id}"
+                )
+                return
+            comm.A_ns_CDemail = resp["A_ns_CDemail"]
+            mp_mapping = _entMapping(
+                name=comm.A_ns_CL_value,
+                email=str(comm.A_ns_CDemail),
+                url=ent_url.__str__(),
+            )
+            entity = self._transform_to_entity(mp_mapping, EntityType.COMMITTEE)
+            return entity
+
+        data = await self._fetch("coll-list/bg/3")
+        if not data:
             return []
+        raw_entities: List[Mapping] = data
+        entities: List[Entity] = []
 
-        entities = []
-        for item in raw_list:
-            entity = self._transform_to_entity(item, EntityType.GOVERNMENT_ENTITY)
-            if entity:
-                entities.append(entity)
-
+        batch_size = 5
+        for i in range(0, len(raw_entities), 5):
+            batch = raw_entities[i : i + batch_size]
+            tasks = [_process_committee(item) for item in batch]
+            results = await asyncio.gather(*tasks)
+            entities.extend([ent for ent in results if ent is not None])
+            if i + batch_size < len(raw_entities):
+                print(f"processed {i}/{len(raw_entities)})")
+                await asyncio.sleep(1.0)
         return entities
 
     async def sync_entities(self, entities: List[Entity]):
@@ -88,7 +169,7 @@ class EntityMaintainer:
         for entity in entities:
             try:
                 # Check if entity already exists by email
-                existing = pb.collection("entities").get_list(
+                existing = pb.collection("entity").get_list(
                     1, 1, {"filter": f'email = "{entity.email}"'}
                 )
 
@@ -96,10 +177,10 @@ class EntityMaintainer:
 
                 if existing.items:
                     # Update existing record
-                    pb.collection("entities").update(existing.items[0].id, data)
+                    pb.collection("entity").update(existing.items[0].id, data)
                 else:
                     # Create new record
-                    pb.collection("entities").create(data)
+                    pb.collection("entity").create(data)
             except Exception as e:
                 logger.error(f"Failed to sync entity {entity.email}: {e}")
 

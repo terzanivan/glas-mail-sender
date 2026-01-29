@@ -1,11 +1,12 @@
 from enum import Enum
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, HttpUrl
+from pydantic_core import Url
 
 
 class EntityType(str, Enum):
-    COMMISSION = "commission"
+    COMMITTEE = "commission"
     MP = "mp"
     COMPANY = "company"
     GOVERNMENT_ENTITY = "government_entity"
@@ -32,6 +33,7 @@ class Entity(PBBaseModel):
     name: str
     email: EmailStr
     ent_type: EntityType
+    ent_source: str
 
 
 class TemplateExpand(BaseModel):
