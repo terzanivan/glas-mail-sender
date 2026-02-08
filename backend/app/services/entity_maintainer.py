@@ -1,4 +1,5 @@
 import asyncio
+from itertools import zip_longest
 import logging
 import httpx
 from typing import List, Any, Mapping, Optional, TypedDict
@@ -166,21 +167,36 @@ class EntityMaintainer:
         Synchronizes the provided list of entities with the PocketBase database.
         Performs an upsert based on the email address.
         """
+        coll_entity = pb.collection("entity")
+        # Prepare the database entities for comparisson
+        db_entities_raw = coll_entity.get_full_list(batch=300)
+        db_entities_models = [Entity.model_validate(e) for e in db_entities_raw]
+        db_entities_map = {
+            e.email: e.id for e in db_entities_models if e.id is not None
+        }
+        db_entities_cmp = set(db_entities_map.keys())
+
+        incoming_entities_cmp = {e.email for e in entities}
+
+        stale_mails = db_entities_cmp - incoming_entities_cmp
+
+        for mail in stale_mails:
+            coll_entity.delete(db_entities_map[mail])
+
         for entity in entities:
             try:
-                # Check if entity already exists by email
-                existing = pb.collection("entity").get_list(
-                    1, 1, {"filter": f'email = "{entity.email}"'}
-                )
-
-                data = entity.model_dump(exclude={"id", "created", "updated"})
-
-                if existing.items:
-                    # Update existing record
-                    pb.collection("entity").update(existing.items[0].id, data)
+                if entity.email in db_entities_cmp:
+                    coll_entity.update(
+                        id=db_entities_map[entity.email],
+                        body_params=entity.model_dump(
+                            exclude={"id", "created", "updated"}
+                        ),
+                    )
                 else:
                     # Create new record
-                    pb.collection("entity").create(data)
+                    coll_entity.create(
+                        entity.model_dump(exclude={"id", "created", "updated"})
+                    )
             except Exception as e:
                 logger.error(f"Failed to sync entity {entity.email}: {e}")
 
